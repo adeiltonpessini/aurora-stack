@@ -14,6 +14,7 @@ import { findStack } from "../lib/stack-registry.js"
 import { renderTemplate } from "../lib/template-render.js"
 import { promptForVars } from "../lib/var-prompt.js"
 import { exec } from "../lib/exec.js"
+import { translateDockerError } from "../lib/docker-errors.js"
 import { readState, writeState } from "../lib/state.js"
 import { requireRoot } from "../lib/root.js"
 import { PATHS } from "../lib/paths.js"
@@ -40,6 +41,16 @@ export async function deployCommand(stackName?: string): Promise<void> {
   if (!state) {
     throw new Error(
       `Servidor nao foi inicializado. Rode \`aurora init\` primeiro antes do deploy.`,
+    )
+  }
+
+  // Valida dependencias antes de qualquer trabalho. Mensagem clara
+  // listando o que falta e o comando exato pra resolver.
+  const missing = (stack.requires ?? []).filter((dep) => !state.stacks[dep])
+  if (missing.length > 0) {
+    const list = missing.map((d) => `  - aurora deploy ${d}`).join("\n")
+    throw new Error(
+      `${stack.displayName} precisa das seguintes stacks instaladas antes:\n${list}\n\nInstale-as primeiro e tente de novo.`,
     )
   }
 
@@ -113,7 +124,15 @@ export async function deployCommand(stackName?: string): Promise<void> {
         { timeoutMs: 120_000 },
       )
       if (r.code !== 0) {
-        throw new Error(`docker stack deploy falhou (code ${r.code}): ${r.stderr}`)
+        throw new Error(
+          translateDockerError({
+            command: "docker stack deploy",
+            stack: stack.name,
+            stderr: r.stderr,
+            stdout: r.stdout,
+            code: r.code,
+          }),
+        )
       }
     },
     `${stack.name} subiu (Swarm orquestrando)`,

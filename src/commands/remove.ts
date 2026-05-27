@@ -34,6 +34,25 @@ export async function removeCommand(stackName?: string): Promise<void> {
     )
   }
 
+  // Quebraria a depender? Levanta antes de tudo. Ex: remover Traefik
+  // com Portainer instalado deixaria a UI do Portainer inacessivel.
+  // Forcamos a ordem inversa do install.
+  const installed = Object.keys(state.stacks)
+  const dependents: string[] = []
+  for (const otherName of installed) {
+    if (otherName === stackName) continue
+    const otherDef = findStack(otherName)
+    if (otherDef?.requires?.includes(stackName)) {
+      dependents.push(otherName)
+    }
+  }
+  if (dependents.length > 0) {
+    const list = dependents.map((d) => `  - aurora remove ${d}`).join("\n")
+    throw new Error(
+      `Nao posso remover "${stackName}" — as seguintes stacks dependem dela:\n${list}\n\nRemova-as primeiro (na ordem acima) e tente de novo.`,
+    )
+  }
+
   requireRoot()
   printBanner()
   intro(`aurora remove ${stackName}`)

@@ -57,6 +57,12 @@ export interface StackDefinition {
   // ["docker stack rm <name>"]. Override pra stacks que precisam de
   // cleanup extra (ex: drop de schema, unmount).
   teardown?: string[]
+  // Stacks que precisam ja estar instaladas antes desta. Aurora valida
+  // no inicio do deploy e aborta com mensagem clara se faltarem. Ex:
+  // Portainer expoe HTTPS, entao requires: ["traefik"]. n8n persiste em
+  // DB, entao requires: ["postgres"]. Pode ser vazio/undefined (stacks
+  // base como Traefik e Postgres nao tem requires).
+  requires?: string[]
 }
 
 // Stack registrada no catalogo — eh a definicao + diretorio resolvido

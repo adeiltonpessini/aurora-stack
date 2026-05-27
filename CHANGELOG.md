@@ -1,5 +1,61 @@
 # Changelog
 
+## [0.1.0-alpha.6] - 2026-05-27
+
+### Added — Hardening de qualidade (UX profissional)
+
+3 melhorias que tiram Aurora do "funciona" pra "funciona bem".
+
+**1. Dependencias entre stacks** (`requires` em `StackDefinition`)
+
+- Stacks podem declarar dependencias: `requires: ["traefik"]`.
+- `aurora deploy portainer` antes de `aurora deploy traefik` agora **aborta com mensagem clara** listando o que falta e o comando exato pra resolver — em vez de subir Portainer sem TLS e o usuario descobrir 10min depois.
+- `aurora remove traefik` com Portainer instalado tambem **bloqueia** com mensagem clara apontando a ordem correta de remocao.
+- Portainer ja declara `requires: ["traefik"]`.
+
+**2. Tradutor de erros do Docker** (`lib/docker-errors.ts`)
+
+Antes: `aurora deploy traefik` com porta 80 ocupada cuspia stderr cru:
+
+```
+Error response from daemon: driver failed programming external connectivity ...
+```
+
+Agora:
+
+```
+Porta 80 ja esta em uso no servidor.
+Isso geralmente acontece quando:
+  - outro container/service ja escuta nessa porta
+  - nginx/apache/caddy do sistema esta rodando
+
+Investigar: sudo lsof -i :80   ou   sudo ss -tlnp | grep 80
+Resolver: parar o processo conflitante OU mudar a porta exposta da stack.
+```
+
+Padroes traduzidos: porta em uso, rede ausente, imagem 404, swarm nao iniciado, permission denied, daemon offline, YAML invalido. Fallback mostra stderr cru (sempre melhor que silenciar).
+
+**3. Doctor inteligente** (`aurora doctor`)
+
+Antes: 5 checks (Docker, Swarm, rede, estrutura, server.yml). Agora **8 checks** com 3 niveis (ok/warn/fail):
+
+- Docker + Swarm + rede overlay (com nome configurado no init)
+- Estrutura /opt/aurora intacta
+- /etc/aurora/server.yml valido
+- **NOVO: Portas 80 e 443** — livre = OK; em uso pelo nosso Traefik = OK; em uso por outro proc = FAIL com sugestao de `lsof`
+- **NOVO: Espaco em disco** em /opt/aurora — < 2GB FAIL, < 5GB WARN
+- **NOVO: Stacks state vs Swarm** — detecta drift (stack no `server.yml` mas nao em `docker stack ls`)
+- **NOVO: DNS publico das stacks** — resolve dominio + compara com IP do servidor (`hostname -I`), FAIL se aponta pra outro IP
+- API key Aurora MCP (se setada)
+
+Exit code: 1 soh se houver FAIL; WARN nao bloqueia.
+
+### Stats
+
+- 71 testes verde (era 62 no alpha.5)
+- tsc verde
+- build verde
+
 ## [0.1.0-alpha.5] - 2026-05-27
 
 ### Added — Motor de templates + 3 stacks-piloto

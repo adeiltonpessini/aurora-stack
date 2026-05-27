@@ -27,4 +27,7 @@ export default defineStack({
   ],
   primaryDomain: (v) => v.PORTAINER_DOMAIN,
   teardown: ["docker stack rm portainer"],
+  // Portainer expoe HTTPS via Traefik labels — sem Traefik instalado,
+  // a UI fica inacessivel (porta 9000 nao eh exposta diretamente).
+  requires: ["traefik"],
 })
