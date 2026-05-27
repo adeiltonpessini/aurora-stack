@@ -37,6 +37,11 @@ export const ServerStateSchema = z.object({
     // Default Sao_Paulo porque maioria dos usuarios alvo eh BR; pode ser
     // qualquer Olson timezone.
     timezone: z.string().default("America/Sao_Paulo"),
+    // Nome da overlay network do Swarm usada por todas as stacks. Default
+    // "aurora-net". Configuravel porque pode haver overlays preexistentes
+    // (ex: "network_public" do SetupOrion) que o dono quer reaproveitar
+    // pra nao re-attachar tudo, ou pra evitar conflito.
+    network_name: z.string().default("aurora-net"),
     installed_at: z.string(),
     cli_version: z.string(),
   }),

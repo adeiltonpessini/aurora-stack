@@ -63,12 +63,21 @@ export async function deployCommand(stackName?: string): Promise<void> {
 
   // Coleta as vars
   note(stack.description, "Configurando vars")
-  const vars = await promptForVars(stack.vars, existing?.vars)
+  const userVars = await promptForVars(stack.vars, existing?.vars)
+
+  // Vars injetadas automaticamente pelo motor (nao perguntadas):
+  //   - NETWORK_NAME: nome da rede overlay configurada em `aurora init`
+  // Manter o nome em uma var permite que templates referenciem
+  // {{NETWORK_NAME}} sem o template saber qual rede o usuario escolheu.
+  const renderVars = {
+    ...userVars,
+    NETWORK_NAME: state.server.network_name,
+  }
 
   // Renderiza o compose
   const tmplPath = join(stack.templateDir, stack.composeTemplate)
   const tmplRaw = await readFile(tmplPath, "utf8")
-  const composeBody = renderTemplate(tmplRaw, vars)
+  const composeBody = renderTemplate(tmplRaw, renderVars)
 
   // Caminhos finais
   const composeOut = join(PATHS.stacksDir, `${stack.name}.yml`)
@@ -83,7 +92,9 @@ export async function deployCommand(stackName?: string): Promise<void> {
       await writeFile(composeOut, composeBody, "utf8")
 
       // Env file: KEY=VALUE por linha. Senhas estao aqui, entao chmod 600.
-      const envBody = Object.entries(vars)
+      // Salvamos apenas as vars do usuario (NETWORK_NAME vive em
+      // server.yml, nao precisa ficar duplicada em todo .env).
+      const envBody = Object.entries(userVars)
         .map(([k, v]) => `${k}=${v}`)
         .join("\n") + "\n"
       await writeFile(envOut, envBody, "utf8")
@@ -108,14 +119,15 @@ export async function deployCommand(stackName?: string): Promise<void> {
     `${stack.name} subiu (Swarm orquestrando)`,
   )
 
-  // Atualiza state
-  const primaryDomain = stack.primaryDomain?.(vars)
+  // Atualiza state (salvamos apenas userVars — NETWORK_NAME ja vive em
+  // server.network_name e seria duplicado se gravasse aqui).
+  const primaryDomain = stack.primaryDomain?.(userVars)
   state.stacks[stack.name] = {
     version: stack.version,
     installed_at: existing?.installed_at ?? new Date().toISOString(),
     config_path: envOut,
     ...(primaryDomain ? { domain: primaryDomain } : {}),
-    vars,
+    vars: userVars,
   }
   await writeState(state)
 

@@ -30,12 +30,19 @@ describe("state YAML round-trip", () => {
     expect(back!.stacks).toEqual({})
   })
 
-  it("initialState aplica defaults: display_name=hostname, timezone=America/Sao_Paulo, sem admin_email", async () => {
+  it("initialState aplica defaults: display_name=hostname, timezone=America/Sao_Paulo, network_name=aurora-net, sem admin_email", async () => {
     const { initialState } = await import("../src/lib/state.js")
     const s = initialState("meu-host", "0.1.0")
     expect(s.server.display_name).toBe("meu-host") // default = hostname
     expect(s.server.timezone).toBe("America/Sao_Paulo")
+    expect(s.server.network_name).toBe("aurora-net")
     expect(s.server.admin_email).toBeUndefined()
+  })
+
+  it("initialState aceita network_name customizado", async () => {
+    const { initialState } = await import("../src/lib/state.js")
+    const s = initialState("h", "0.1.0", { network_name: "network_public" })
+    expect(s.server.network_name).toBe("network_public")
   })
 
   it("initialState aceita extras (display_name + admin_email + timezone)", async () => {

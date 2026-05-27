@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.1.0-alpha.5] - 2026-05-27
+
+### Added — Motor de templates + 3 stacks-piloto
+
+`aurora deploy <stack>` agora **funciona de verdade**. Saiu do esqueleto e virou wizard interativo.
+
+**Motor (`src/lib/`):**
+
+- **`stack-def.ts`** — `defineStack()` com validacao em runtime: slug obrigatorio, vars unicas, composeTemplate nao vazio. 5 tipos de var: `text`, `password`, `email`, `domain`, `secret-generated`.
+- **`template-render.ts`** — mini renderizador sem deps (~40 LoC). Sintaxe: `{{VAR}}` e `{{#if VAR}}...{{/if}}`. Lanca erro com nome da var faltando — falha cedo melhor que YAML quebrado no docker.
+- **`var-prompt.ts`** — perguntas tipadas via Clack + geracao automatica de secrets via `crypto.randomBytes(N).toString("base64url")`. **Re-deploy preserva senha** existente (nao quebra apps que cacheam credencial).
+- **`stack-registry.ts`** — `listStacks()`, `findStack()`, `listByCategory()`. Catalogo central em `src/templates-index.ts` (imports estaticos pro tsup bundlar).
+
+**Comandos:**
+
+- **`aurora deploy <stack>`** — resolve no catalogo, valida state inicial, pergunta vars (preservando defaults do state em re-deploy), renderiza `compose.tmpl`, escreve `/opt/aurora/stacks/<name>.yml` + `/opt/aurora/configs/<name>.env` (chmod 600), executa `docker stack deploy --with-registry-auth`, atualiza state. Exibe URL primaria no `outro`.
+- **`aurora remove <stack>`** — confirma explicita (sem `--yes`), executa `teardown` (default: `docker stack rm`), limpa state. **PRESERVA volumes e configs** por default — defaults conservadores.
+- **`aurora list --available`** (ou `-a`) — lista catalogo completo agrupado por categoria.
+
+**Stacks-piloto (`templates/`):**
+
+- **Traefik 3.0** — reverse proxy + Let's Encrypt automatico (TLS challenge). Sem dashboard publico no v0.1 (precisaria de bcrypt pra basic auth).
+- **Portainer CE 2.21** — painel Docker/Swarm. Admin criado na primeira tela web.
+- **PostgreSQL 16** — banco base, sem porta exposta, healthcheck `pg_isready`, volume persistente.
+
+Cada template tem `template.ts` + `compose.tmpl` + `README.md`.
+
+### Changed — nome de rede configuravel (estilo SetupOrion)
+
+`aurora init` agora pergunta tambem o **nome da rede Docker overlay** (default `aurora-net`). Configuravel pra coexistir com setups antigos (ex: `network_public` do SetupOrion) sem re-attachar todos os containers.
+
+- Novo campo `server.network_name` em `ServerState`.
+- `deploy.ts` injeta automaticamente `{{NETWORK_NAME}}` nas vars renderizadas — templates referenciam `{{NETWORK_NAME}}` em vez de hard-coded.
+- `aurora status` exibe a rede configurada.
+- Validacao no init: nome valido do Docker (1-64 chars, `[a-zA-Z0-9._-]`, comecando alfanumerico).
+
+### Por que UMA vez no init e nao por stack (igual SetupOrion)
+
+SetupOrion pergunta rede em cada stack porque nao tem estado central. Aurora tem (`/etc/aurora/server.yml`). Perguntar uma vez evita inconsistencia (Portainer em `network_a`, n8n em `network_b` nao se conversam) e poupa tempo do usuario.
+
+### Stats
+
+- 5 libs novas (`stack-def`, `template-render`, `var-prompt`, `stack-registry`, `templates-index`)
+- 2 commands reescritos (`deploy`, `remove`)
+- 3 templates piloto
+- 62 testes verde (era 30 no alpha.4)
+- tsc verde
+- build verde
+
 ## [0.1.0-alpha.4] - 2026-05-27
 
 ### Added — `aurora init` interativo

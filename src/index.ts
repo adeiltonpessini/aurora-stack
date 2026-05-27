@@ -42,10 +42,11 @@ async function main() {
 
   program
     .command("list")
-    .description("Lista stacks instaladas")
-    .action(async () => {
+    .description("Lista stacks instaladas. Use --available pra ver catalogo")
+    .option("-a, --available", "Lista catalogo completo de stacks disponiveis")
+    .action(async (opts) => {
       const { listCommand } = await import("./commands/list.js")
-      await listCommand()
+      await listCommand({ available: opts.available === true })
     })
 
   program

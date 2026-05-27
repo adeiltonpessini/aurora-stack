@@ -21,6 +21,7 @@ export function initialState(
     display_name?: string
     admin_email?: string
     timezone?: string
+    network_name?: string
   },
 ): ServerState {
   return {
@@ -31,6 +32,7 @@ export function initialState(
       display_name: extras?.display_name ?? host,
       ...(extras?.admin_email ? { admin_email: extras.admin_email } : {}),
       timezone: extras?.timezone ?? "America/Sao_Paulo",
+      network_name: extras?.network_name ?? "aurora-net",
       installed_at: new Date().toISOString(),
       cli_version: cliVersion,
     },

@@ -23,11 +23,12 @@ export function renderTemplate(tmpl: string, vars: Record<string, string>): stri
   // Passo 2: substitui {{VAR}} restantes. Se referencia uma var nao
   // passada, lanca — preferimos falhar cedo que deixar literal "{{X}}"
   // vazar no compose (que daria erro do docker minutos depois).
-  out = out.replace(VAR_REF, (_match, name: string) => {
-    if (!(name in vars)) {
+  out = out.replace(VAR_REF, (_match, name: string): string => {
+    const v = vars[name]
+    if (v === undefined) {
       throw new Error(`renderTemplate: variavel "${name}" referenciada no template mas nao foi passada`)
     }
-    return vars[name]
+    return v
   })
 
   return out

@@ -62,6 +62,7 @@ export async function removeCommand(stackName?: string): Promise<void> {
   for (const cmdLine of commands) {
     const parts = cmdLine.split(/\s+/)
     const cmd = parts[0]
+    if (!cmd) continue
     const args = parts.slice(1)
     await withSpinner(
       `Executando: ${cmdLine}`,

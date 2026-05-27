@@ -41,7 +41,8 @@ export async function promptForVars(
 
     // Validacao customizada da stack (apos input + apos default-resolved).
     if (v.validate) {
-      const err = v.validate(out[v.name])
+      const value = out[v.name] ?? ""
+      const err = v.validate(value)
       if (err) {
         throw new Error(`Validacao falhou em ${v.name}: ${err}`)
       }

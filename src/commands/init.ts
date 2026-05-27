@@ -23,7 +23,7 @@ import {
 } from "../lib/docker.js"
 import { readState, writeState, initialState, defaultHostname } from "../lib/state.js"
 import { readUserConfig, writeUserConfig } from "../lib/config.js"
-import { PATHS, AURORA_NET, STATE_SUBDIRS } from "../lib/paths.js"
+import { PATHS, STATE_SUBDIRS } from "../lib/paths.js"
 import { cliVersion } from "../lib/version.js"
 import { intro, outro, note, askText, askConfirm } from "../tui/prompt.js"
 import { withSpinner } from "../tui/spinner.js"
@@ -100,18 +100,8 @@ export async function initCommand(): Promise<void> {
     "Docker Swarm ativo (single-node manager)",
   )
 
-  // 5. AuroraNet
-  await withSpinner(
-    `Verificando network ${AURORA_NET}`,
-    async () => {
-      if (!(await networkExists(AURORA_NET))) {
-        await createOverlayNetwork(AURORA_NET)
-      }
-    },
-    `Network ${AURORA_NET} pronta`,
-  )
-
-  // 6. Estrutura de diretorios
+  // 5. Estrutura de diretorios (idempotente, antes das perguntas pra
+  // garantir que /etc/aurora existe pra writeState depois)
   await withSpinner(
     "Criando estrutura /opt/aurora",
     async () => {
@@ -136,6 +126,7 @@ export async function initCommand(): Promise<void> {
   let displayName = ""
   let adminEmail = ""
   let timezone = ""
+  let networkName = ""
   let confirmed = false
 
   while (!confirmed) {
@@ -166,11 +157,34 @@ export async function initCommand(): Promise<void> {
       },
     )
 
+    // Nome da rede overlay — todas stacks vao se conectar a ela.
+    // Permitir customizar protege contra colisao com rede preexistente
+    // (ex: "network_public" do SetupOrion num servidor migrado).
+    // Validacao: slug do Docker (1-64 chars, [a-zA-Z0-9._-]).
+    while (true) {
+      const candidate = await askText(
+        "Nome da rede Docker overlay (compartilhada por todas stacks):",
+        {
+          default: existing?.server.network_name || networkName || "aurora-net",
+          placeholder: "aurora-net",
+        },
+      )
+      const trimmed = candidate.trim()
+      if (/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(trimmed)) {
+        networkName = trimmed
+        break
+      }
+      note(
+        aurora.warn("Nome de rede inválido. Use letras/números/_-., 1 a 64 caracteres, começando por alfanumérico."),
+      )
+    }
+
     // Confirmacao tipo SetupOrion ("As respostas estao corretas?")
     note(
       `Nome amigável: ${aurora.bold(displayName)}\n` +
         `Email admin:   ${adminEmail ? aurora.bold(adminEmail) : aurora.dim("(vazio)")}\n` +
         `Timezone:      ${aurora.bold(timezone)}\n` +
+        `Rede Docker:   ${aurora.bold(networkName)}\n` +
         `Hostname SO:   ${aurora.dim(techHost)} ${aurora.dim("(lido do sistema)")}`,
       "Confirme",
     )
@@ -180,6 +194,17 @@ export async function initCommand(): Promise<void> {
       note("Vamos refazer.", "Ok")
     }
   }
+
+  // 6. AuroraNet (depois de saber o nome configurado pelo usuario)
+  await withSpinner(
+    `Verificando network ${networkName}`,
+    async () => {
+      if (!(await networkExists(networkName))) {
+        await createOverlayNetwork(networkName)
+      }
+    },
+    `Network ${networkName} pronta`,
+  )
 
   // ──────────────────────────────────────────────────────────────────
   // Persistir estado
@@ -198,6 +223,7 @@ export async function initCommand(): Promise<void> {
             display_name: displayName,
             ...(adminEmail ? { admin_email: adminEmail } : { admin_email: undefined }),
             timezone,
+            network_name: networkName,
             cli_version: await cliVersion(),
           },
         }
@@ -212,6 +238,7 @@ export async function initCommand(): Promise<void> {
           display_name: displayName,
           ...(adminEmail ? { admin_email: adminEmail } : {}),
           timezone,
+          network_name: networkName,
         })
         await writeState(fresh)
       }

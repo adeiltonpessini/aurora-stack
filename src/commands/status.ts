@@ -28,6 +28,9 @@ export async function statusCommand(): Promise<void> {
   if (state?.server.admin_email) {
     console.log(`  ${aurora.dim("Admin")}       ${state.server.admin_email}`)
   }
+  if (state?.server.network_name) {
+    console.log(`  ${aurora.dim("Rede")}        ${state.server.network_name}`)
+  }
   console.log(`  ${aurora.dim("Uptime")}      ${upDays}d`)
   console.log(`  ${aurora.dim("CPU")}         ${cpuCount} cores`)
   console.log(`  ${aurora.dim("RAM")}         ${ramUsedPct}% usado (${ramFreeGb}/${ramTotalGb} GB livre)`)
