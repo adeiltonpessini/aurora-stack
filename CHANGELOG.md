@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.0-alpha.3] - 2026-05-27
+
+### Added
+
+- `setup.sh` ganhou fallback "install from source" — se `npm install -g @aurorabr/stack` falhar (pacote ainda não publicado), clona o repo, builda local e usa `npm link`. Permite testar Aurora Stack em VPS antes do publish oficial. Override via `AURORA_FROM_SOURCE=1`.
+- **LICENSE** definida: **Elastic License v2 (ELv2)**. Permite uso comercial, modificação e redistribuição; proíbe oferecer como SaaS gerenciado e burlar features pagas. Compatível com a estratégia de monetização da Aurora.
+- **README profissional**: reestruturado com badges, índice, seções de catálogo expansíveis, comparativos vs SetupOrion/Coolify, arquitetura, contributing guide, security policy, LGPD.
+
+### Changed
+
+- `package.json` license field migrado de `MIT` para `SEE LICENSE IN LICENSE` (formato npm pra licenças custom).
+
 ## [0.1.0-alpha.2] - 2026-05-27
 
 ### Changed

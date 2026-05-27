@@ -105,13 +105,67 @@ mkdir -p /opt/aurora/{apps,stacks,volumes,backups,configs,logs}
 mkdir -p /etc/aurora
 ok "Estrutura criada"
 
-# 10. CLI
-info "Instalando @aurorabr/stack via npm"
-npm install -g @aurorabr/stack >/dev/null 2>&1 || {
-  err "Falha ao instalar @aurorabr/stack via npm. Verifique sua conexão."
-  exit 1
-}
-ok "Aurora Stack instalado: $(aurora --version)"
+# 10. CLI — tenta npm primeiro, fallback pra install from source.
+#
+# Por que dois caminhos:
+#   • Caminho 1 (npm): rapido e oficial. Funciona quando o pacote
+#     @aurorabr/stack ja foi publicado no registry (GitHub Actions
+#     release.yml roda npm publish em cada tag v*).
+#   • Caminho 2 (source): plano B pra periodo de pre-publish. Clona
+#     o repo, builda, link global. Util ate ter NPM_TOKEN configurado
+#     E uma release de fato publicada.
+#
+# Variavel de override pra usuario avancado:
+#   AURORA_FROM_SOURCE=1 bash <(curl -sSL ...) → pula npm e vai direto
+#   pro source (util pra testar branches/PRs).
+info "Instalando Aurora Stack CLI"
+AURORA_INSTALLED=0
+
+if [ "${AURORA_FROM_SOURCE:-0}" != "1" ]; then
+  if npm install -g @aurorabr/stack >/dev/null 2>&1; then
+    AURORA_INSTALLED=1
+    ok "Aurora Stack instalado via npm: $(aurora --version)"
+  else
+    info "npm install falhou (pacote ainda nao publicado?). Tentando from source"
+  fi
+fi
+
+if [ "$AURORA_INSTALLED" = "0" ]; then
+  # Install from source: clone repo + build + link.
+  # Local: /opt/aurora/cli-source (versionado por git, atualizavel
+  # com `cd /opt/aurora/cli-source && git pull && npm run build`).
+  SOURCE_DIR="/opt/aurora/cli-source"
+  REPO_URL="${AURORA_REPO_URL:-https://github.com/adeiltonpessini/aurora-stack.git}"
+  BRANCH="${AURORA_BRANCH:-main}"
+
+  if ! command -v git >/dev/null 2>&1; then
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git
+  fi
+
+  if [ -d "$SOURCE_DIR/.git" ]; then
+    info "Atualizando codigo em $SOURCE_DIR"
+    git -C "$SOURCE_DIR" fetch --depth=1 origin "$BRANCH"
+    git -C "$SOURCE_DIR" reset --hard "origin/$BRANCH"
+  else
+    info "Clonando $REPO_URL (branch $BRANCH) em $SOURCE_DIR"
+    rm -rf "$SOURCE_DIR"
+    git clone --depth=1 --branch "$BRANCH" "$REPO_URL" "$SOURCE_DIR"
+  fi
+
+  info "Build (npm ci + npm run build)"
+  ( cd "$SOURCE_DIR" && npm ci --silent && npm run build --silent ) || {
+    err "Build do source falhou. Veja $SOURCE_DIR pra debug."
+    exit 1
+  }
+
+  info "Linking aurora globalmente"
+  ( cd "$SOURCE_DIR" && npm link --silent ) || {
+    err "npm link falhou."
+    exit 1
+  }
+
+  ok "Aurora Stack instalado from source: $(aurora --version)"
+fi
 
 # 11. init final
 echo ""

@@ -1,6 +1,6 @@
 {
   "name": "@aurorabr/stack",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "description": "Transforme qualquer Linux em uma infraestrutura inteligente — CLI de provisionamento Docker Swarm com IA conversacional.",
   "type": "module",
   "bin": {
@@ -16,7 +16,7 @@
   },
   "keywords": ["aurora", "docker", "swarm", "cli", "self-hosted", "devops", "homelab", "lgpd"],
   "author": "Adeilton Pessini",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/adeiltonpessini/aurora-stack.git"
