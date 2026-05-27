@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.0-alpha.2] - 2026-05-27
+
+### Changed
+
+- **Suporte expandido**: agora aceita Debian 12 (Bookworm) E Debian 13 (Trixie). Antes só Debian 12.
+- `detectOs()` e `setup.sh` validam ambas as versões.
+- README atualizado.
+
 ## [0.1.0-alpha.1] - 2026-05-27
 
 ### Added — Plano A (CLI core)

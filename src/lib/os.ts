@@ -1,12 +1,22 @@
 // Detecta SO via /etc/os-release (padrão freedesktop.org, presente em
-// todas as distros Linux modernas). v0.1 só aceita Debian 12 — outras
-// distros são marcadas como `isSupported:false` e o init aborta com
-// mensagem clara.
+// todas as distros Linux modernas). Lista de SOs suportados: Debian 12
+// (Bookworm) e Debian 13 (Trixie). Ambos validados como compatíveis
+// com apt + systemd + Docker Engine via get.docker.com + NodeSource
+// setup_20.x. Distros fora da lista são marcadas como
+// `isSupported:false` e o init aborta com mensagem clara.
+//
+// Critérios pra entrar na lista:
+//   • apt-based (mesma sintaxe de install)
+//   • systemd (necessário pra Docker)
+//   • Não-EOL (Debian 11 fica fora — EOL programado pra junho/2026)
 
 import { readFile } from "node:fs/promises"
 import type { OsInfo } from "../types.js"
 
-const SUPPORTED_OS = [{ id: "debian", versionId: "12" }] as const
+const SUPPORTED_OS = [
+  { id: "debian", versionId: "12" },
+  { id: "debian", versionId: "13" },
+] as const
 
 export async function detectOs(): Promise<OsInfo> {
   try {

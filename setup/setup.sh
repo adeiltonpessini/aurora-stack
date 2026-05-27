@@ -35,18 +35,18 @@ cat <<'EOF'
 ========================================================
 EOF
 
-# 1. Debian 12
+# 1. Debian 12 ou 13
 info "Verificando SO"
 if [ ! -f /etc/os-release ]; then
   err "/etc/os-release não encontrado. Aurora Stack só roda em Linux."
   exit 1
 fi
 . /etc/os-release
-if [ "${ID:-}" != "debian" ] || [ "${VERSION_ID:-}" != "12" ]; then
-  err "Aurora Stack v0.1 requer Debian 12. Encontrado: ${PRETTY_NAME:-$ID $VERSION_ID}"
+if [ "${ID:-}" != "debian" ] || { [ "${VERSION_ID:-}" != "12" ] && [ "${VERSION_ID:-}" != "13" ]; }; then
+  err "Aurora Stack v0.1 requer Debian 12 (Bookworm) ou 13 (Trixie). Encontrado: ${PRETTY_NAME:-$ID $VERSION_ID}"
   exit 1
 fi
-ok "Debian 12 detectado"
+ok "${PRETTY_NAME} detectado"
 
 # 2. Root
 if [ "$(id -u)" != "0" ]; then

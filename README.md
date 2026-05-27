@@ -10,7 +10,7 @@ CLI de provisionamento de servidores Linux com Docker Swarm + Traefik + 95 stack
 
 ## Instalação rápida
 
-Em um servidor **Debian 12** limpo:
+Em um servidor **Debian 12 (Bookworm) ou 13 (Trixie)** limpo:
 
 ```bash
 bash <(curl -sSL setup.aurora-mcp.com)
