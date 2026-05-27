@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.1.0-alpha.4] - 2026-05-27
+
+### Added — `aurora init` interativo
+
+Antes o `aurora init` só rodava as verificações de ambiente sem perguntar nada. Agora pergunta (padrão inspirado no SetupOrion):
+
+- **Nome amigável do servidor** (`display_name`) — default = hostname do SO. Aparece em `aurora status`, contexto da IA, futuros alertas.
+- **Email do admin** (`admin_email`) — opcional. Usado em alertas Aurora futuros (Plano C). NÃO é email do Let's Encrypt (esse vai por stack no `aurora deploy`).
+- **Timezone** (`timezone`) — IANA timezone, default `America/Sao_Paulo`. Usado em cron schedules, formatação de logs, agendamento de backups.
+- **Tela de confirmação** ("As respostas estão corretas? [s/N]") — se `N`, refaz as perguntas. Idêntico ao padrão SetupOrion.
+
+Idempotente: rodar `aurora init` novamente mostra valores atuais como default (Enter pra manter).
+
+### Changed
+
+- **Schema `ServerState`** estendido com 3 campos novos em `server`: `display_name`, `admin_email` (opcional), `timezone`. Defaults aplicados em `initialState()`.
+- **`aurora status`** agora exibe `Servidor: <display_name> (<hostname técnico>)` quando há display_name, além de `Timezone` e `Admin`.
+- **Testes do state.ts** expandidos de 5 para 9 (cobertura completa dos campos novos + validação de email).
+
+### Por que não perguntar email Let's Encrypt / domínio / senha Portainer aqui
+
+Essas configs são **por-stack** (cada Traefik pode ter email diferente, cada Portainer domínio diferente). Vão ficar em `aurora deploy <stack>` no Plano B, igual ao escopo do template. Mantém `aurora init` enxuto e focado em config do servidor.
+
 ## [0.1.0-alpha.3] - 2026-05-27
 
 ### Added

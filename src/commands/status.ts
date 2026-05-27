@@ -15,7 +15,19 @@ export async function statusCommand(): Promise<void> {
   const upDays = (uptime() / 86400).toFixed(1)
 
   console.log(aurora.bold(aurora.teal("\nAurora Stack — Status\n")))
-  console.log(`  ${aurora.dim("Hostname")}    ${hostname()}`)
+  // Header bonito: prioriza display_name quando existe (mais amigavel
+  // em IA contextual e alertas), com hostname tecnico em dim ao lado.
+  if (state?.server.display_name && state.server.display_name !== state.server.hostname) {
+    console.log(`  ${aurora.dim("Servidor")}    ${aurora.bold(state.server.display_name)} ${aurora.dim(`(${hostname()})`)}`)
+  } else {
+    console.log(`  ${aurora.dim("Hostname")}    ${hostname()}`)
+  }
+  if (state?.server.timezone) {
+    console.log(`  ${aurora.dim("Timezone")}    ${state.server.timezone}`)
+  }
+  if (state?.server.admin_email) {
+    console.log(`  ${aurora.dim("Admin")}       ${state.server.admin_email}`)
+  }
   console.log(`  ${aurora.dim("Uptime")}      ${upDays}d`)
   console.log(`  ${aurora.dim("CPU")}         ${cpuCount} cores`)
   console.log(`  ${aurora.dim("RAM")}         ${ramUsedPct}% usado (${ramFreeGb}/${ramTotalGb} GB livre)`)

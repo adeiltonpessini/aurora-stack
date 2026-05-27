@@ -1,6 +1,6 @@
 {
   "name": "@aurorabr/stack",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0-alpha.4",
   "description": "Transforme qualquer Linux em uma infraestrutura inteligente — CLI de provisionamento Docker Swarm com IA conversacional.",
   "type": "module",
   "bin": {

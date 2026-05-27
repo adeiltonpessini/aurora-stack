@@ -19,7 +19,24 @@ export const ServerStateSchema = z.object({
   version: z.literal(1),
   server: z.object({
     id: z.string().uuid(),
+    // hostname tecnico (vem do OS, ex: "aurora-test-debian13" do Hetzner).
+    // Persistido pra detectar mudancas — se o usuario renomear no /etc/hostname,
+    // a gente avisa.
     hostname: z.string(),
+    // Nome amigavel que o dono escolhe no `aurora init`. Aparece em
+    // `aurora status`, contexto da IA, alertas. Pode ser igual ao hostname
+    // tecnico ou algo como "Servidor Producao - Sao Paulo".
+    display_name: z.string().default(""),
+    // Email do dono/admin do servidor. Usado pra alertas Aurora (notify
+    // do Plano C) e contexto IA. Opcional — sem email a IA segue funcionando
+    // mas nao manda email de "deploy completo" / "stack offline".
+    // NAO eh email do Let's Encrypt — esse vai por stack no deploy.
+    admin_email: z.string().email().optional(),
+    // Timezone IANA (ex: "America/Sao_Paulo"). Usado em cron schedules,
+    // formatacao de logs em `aurora status`, agendamento de backup.
+    // Default Sao_Paulo porque maioria dos usuarios alvo eh BR; pode ser
+    // qualquer Olson timezone.
+    timezone: z.string().default("America/Sao_Paulo"),
     installed_at: z.string(),
     cli_version: z.string(),
   }),

@@ -10,12 +10,27 @@ import { dump as yamlDump, load as yamlLoad } from "js-yaml"
 import { PATHS } from "./paths.js"
 import { ServerStateSchema, type ServerState } from "../types.js"
 
-export function initialState(host: string, cliVersion: string): ServerState {
+// Cria estado inicial. Campos opcionais (display_name, admin_email,
+// timezone) ficam com defaults — `aurora init` pede eles via prompt e
+// chama writeState() com os valores certos. Quem chama pode passar
+// `extras` pra pre-preencher.
+export function initialState(
+  host: string,
+  cliVersion: string,
+  extras?: {
+    display_name?: string
+    admin_email?: string
+    timezone?: string
+  },
+): ServerState {
   return {
     version: 1,
     server: {
       id: randomUUID(),
       hostname: host,
+      display_name: extras?.display_name ?? host,
+      ...(extras?.admin_email ? { admin_email: extras.admin_email } : {}),
+      timezone: extras?.timezone ?? "America/Sao_Paulo",
       installed_at: new Date().toISOString(),
       cli_version: cliVersion,
     },
