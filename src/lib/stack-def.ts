@@ -59,6 +59,13 @@ export interface StackDefinition {
   teardown?: string[]
 }
 
+// Stack registrada no catalogo — eh a definicao + diretorio resolvido
+// do template no FS. O registry preenche `templateDir` no momento que
+// importa o template.ts (resolve via import.meta.url do arquivo).
+export interface RegisteredStack extends StackDefinition {
+  templateDir: string
+}
+
 const SLUG_REGEX = /^[a-z][a-z0-9-]*$/
 
 export function defineStack(def: StackDefinition): StackDefinition {
