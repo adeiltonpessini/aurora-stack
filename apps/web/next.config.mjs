@@ -4,9 +4,32 @@ import { dirname } from "node:path"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// Headers de seguranca globais (mesmos do BarberAI). CSP fica no
-// middleware (futuro). Por enquanto so basics.
+// CSP da landing. A pagina e estatica: sem scripts externos, sem
+// analytics, sem fontes remotas, sem APIs. Logo, restringimos quase
+// tudo a 'self'. Excecoes:
+//  - script-src 'unsafe-inline': o Next App Router (sem middleware/nonce)
+//    injeta o runtime de hidratacao inline. Sem nonce, e o unico jeito.
+//    Risco baixo aqui porque nao ha entrada de usuario (zero superficie XSS).
+//  - style-src 'unsafe-inline': Tailwind + estilos inline do Next.
+//  - img-src data:: imagens otimizadas/SVG inline do Next.
+//  - frame-ancestors 'none': reforca o X-Frame-Options (anti-clickjacking).
+const csp = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  "upgrade-insecure-requests",
+].join("; ")
+
+// Headers de seguranca globais (mesmos do BarberAI) + CSP.
 const securityHeaders = [
+  { key: "Content-Security-Policy", value: csp },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

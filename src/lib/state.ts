@@ -69,7 +69,9 @@ export async function writeState(state: ServerState): Promise<void> {
   await mkdir(PATHS.serverStateDir, { recursive: true })
   const yaml = yamlDump(state, { noRefs: true, indent: 2, lineWidth: 100 })
   await writeFile(PATHS.serverStateFile, yaml, "utf8")
-  await chmod(PATHS.serverStateFile, 0o644)
+  // 0o600: server.yml guarda admin_email (PII, LGPD art. 6 — segurança).
+  // Só o root/dono do processo lê. No Windows o NTFS ignora grupo/outros.
+  await chmod(PATHS.serverStateFile, 0o600)
 }
 
 export function defaultHostname(): string {

@@ -8,27 +8,76 @@ services:
 ##   • setup.aurora-mcp.com   → mesmo container, rota /setup.sh serve
 ##                              o bash bootstrap (curl -sSL setup... | bash)
 ##
-## Roda na MESMA VPS do BarberAI, reaproveitando a infra existente:
-##   • Rede: BarberaiNet (mesma do BarberAI + Evolution Go + Postgres)
-##   • Traefik: ja instalado, termina HTTPS interno (self-signed) entre
-##     cloudflared↔Traefik. Cert publico (TLS 1.3) eh da Cloudflare no edge.
-##   • Cloudflare Tunnel: 1 CNAME por subdominio → tunnel → Traefik.
+## Roda na MESMA VPS do BarberAI, reaproveitando a infra existente
+## (Traefik + Cloudflare Tunnel), MAS em rede ISOLADA (AuroraNet) — ver
+## "ISOLAMENTO DE REDE" abaixo. A imagem eh publicada pelo GitHub Actions
+## em GHCR; o Portainer faz pull via PAT (mesmo do BarberAI).
 ##
-## A imagem eh publicada pelo GitHub Actions em GHCR. Portainer faz pull
-## via Personal Access Token (mesmo PAT do BarberAI).
+## ───────────────────────── ISOLAMENTO DE REDE ─────────────────────────
+## SEGURANCA (auditoria Nora 2026-05-28): a landing NAO fica mais na
+## BarberaiNet. Numa rede compartilhada, se a landing fosse comprometida
+## (RCE no Next), o atacante teria visibilidade L3 de Postgres, Evolution
+## Go e do app BarberAI — movimento lateral. Agora a landing vive SOZINHA
+## na AuroraNet.
+##
+## TRADE-OFF: o Traefik (roteador unico) vive na BarberaiNet. Pra ele
+## conseguir rotear pra um container, precisa COMPARTILHAR uma rede com
+## ele. Por isso o Traefik tambem precisa ser anexado a AuroraNet (passo
+## de host, feito UMA vez pelo Davi — ver DEPLOY-WEB.md secao "Isolar a
+## landing"). Resultado: Traefik fica nas DUAS redes (rota a landing),
+## mas a landing NAO ve Postgres/Evolution/BarberAI. Isolamento real.
+## ───────────────────────────────────────────────────────────────────────
 
   aurora_web:
-    ## Tag latest segue a branch main. Pra prod estavel, considere pinar
-    ## numa SHA (ex: :sha-abc1234) e atualizar deliberadamente.
-    image: ghcr.io/adeiltonpessini/aurora-web:latest
+    ## IMAGEM PINADA POR DIGEST (nao :latest). Pinar por sha256 garante
+    ## que o que roda em prod eh EXATAMENTE o que foi auditado — imune a
+    ## tag mutavel sobrescrita (supply-chain). Atualizar deliberadamente:
+    ##   1. GitHub Actions publica nova imagem + imprime o digest no log
+    ##   2. Copie o sha256:... e troque abaixo
+    ##   3. Redeploy no Portainer
+    ## Pra pegar o digest da imagem atual no servidor:
+    ##   docker inspect --format='{{index .RepoDigests 0}}' \
+    ##     ghcr.io/adeiltonpessini/aurora-web:latest
+    ##
+    ## ⚠️ SUBSTITUA o placeholder abaixo pelo digest real ANTES do 1o
+    ## deploy de producao. Ate la, pra bootstrap, pode usar :latest
+    ## TEMPORARIAMENTE (descomente a linha latest e comente a com digest).
+    image: ghcr.io/adeiltonpessini/aurora-web@sha256:REPLACE_WITH_REAL_DIGEST
+    # image: ghcr.io/adeiltonpessini/aurora-web:latest  # bootstrap only
 
     networks:
-      - BarberaiNet ## Mesma rede do BarberAI/Traefik
+      - AuroraNet ## REDE ISOLADA — nao enxerga Postgres/Evolution/BarberAI
 
     environment:
       - NODE_ENV=production
       - PORT=4000
       - HOSTNAME=0.0.0.0
+
+    ## ─── Blindagem do container (defesa em profundidade) ──────────────
+    ## Reduz o blast radius caso a landing seja comprometida. A landing eh
+    ## 100% estatica (so serve HTML + setup.sh), nao escreve em disco nem
+    ## precisa de privilegio nenhum em runtime.
+    read_only: true            ## rootfs imutavel — atacante nao persiste
+    tmpfs:
+      - /tmp                   ## unico path gravavel (Next usa pra cache efemero)
+    cap_drop:
+      - ALL                    ## zero capabilities Linux
+    security_opt:
+      - no-new-privileges:true ## nao escala privilegio via setuid
+
+    ## ─── Healthcheck ──────────────────────────────────────────────────
+    ## Usa `node` (sempre presente na node:20-slim) em vez de curl/wget
+    ## (que nao estao instalados). GET na raiz; 2xx/3xx = saudavel.
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://127.0.0.1:4000/',r=>process.exit(r.statusCode<400?0:1)).on('error',()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
     deploy:
       mode: replicated
@@ -40,6 +89,17 @@ services:
         condition: on-failure
         delay: 10s
         max_attempts: 3
+      ## ─── Limites de recurso ─────────────────────────────────────────
+      ## Impede que a landing (ou um eventual leak/abuso) consuma a VPS
+      ## inteira e derrube BarberAI/Postgres. Landing estatica eh leve;
+      ## 256M/0.5cpu sobra. Reservation garante minimo pro scheduler.
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+        reservations:
+          cpus: "0.10"
+          memory: 64M
       labels:
         - traefik.enable=true
 
@@ -49,7 +109,12 @@ services:
         ## eh feito pela Cloudflare ("Always Use HTTPS"). Por isso:
         ##   - tls=true (sem certresolver Let's Encrypt)
         ##   - sem router HTTP + redirectscheme
+        ##
+        ## ⚠️ A label `traefik.docker.network` abaixo eh OBRIGATORIA quando
+        ## o Traefik esta em MAIS DE UMA rede (BarberaiNet + AuroraNet).
+        ## Sem ela o Traefik pode tentar rotear pela rede errada e dar 502.
         ## ───────────────────────────────────────────────────────────
+        - traefik.docker.network=AuroraNet
 
         ## ── Router: landing (stack.) + setup (setup.) ──────────────
         ## Os dois hostnames apontam pro MESMO container. O Next.js
@@ -80,6 +145,10 @@ services:
         - traefik.http.services.aurora-web.loadbalancer.passHostHeader=true
 
 networks:
-  BarberaiNet:
+  ## Rede isolada da landing. `external: true` → tem que ser criada UMA
+  ## vez no host antes do 1o deploy (e o Traefik anexado a ela):
+  ##   docker network create -d overlay --attachable AuroraNet
+  ## Ver DEPLOY-WEB.md secao "Isolar a landing" pro passo-a-passo.
+  AuroraNet:
     external: true
-    name: BarberaiNet
+    name: AuroraNet

@@ -1,0 +1,23 @@
+# Normaliza line endings. Sem isto, em checkout no Windows o git pode
+# converter arquivos pra CRLF — e um shell script com CRLF QUEBRA no Linux
+# (bash: $'\r': command not found). O setup.sh roda via `curl | bash` numa
+# VPS Debian, entao tem que ser LF SEMPRE.
+
+# Default: deixa o git decidir texto vs binario, normalizando pra LF no repo.
+* text=auto eol=lf
+
+# Shell scripts: LF obrigatorio (rodam em Linux).
+*.sh text eol=lf
+
+# Arquivos que tambem rodam/sao lidos em Linux.
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binarios — nunca normalizar.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.woff binary
+*.woff2 binary

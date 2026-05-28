@@ -103,19 +103,25 @@ stacks: {}
     await expect(readState()).rejects.toThrow(/inválido/)
   })
 
-  it("escreve com modo de arquivo (verifica chmod executado sem erro)", async () => {
+  it("server.yml é gravado com 0o600 (contém PII: admin_email — LGPD)", async () => {
     const { stat } = await import("node:fs/promises")
     const { PATHS } = await import("../src/lib/paths.js")
     const { writeState, initialState } = await import("../src/lib/state.js")
-    const s = initialState("h", "0.1.0")
+    const s = initialState("h", "0.1.0", { admin_email: "ops@empresa.com" })
     await writeState(s)
     const st = await stat(PATHS.serverStateFile)
-    // Em Windows, chmod(0o644) resulta em 0o666 (438).
-    // Em Linux, resulta em 0o644 (420).
-    // Verificamos apenas que o arquivo foi criado e chmod foi chamado sem erro.
     expect(st.isFile()).toBe(true)
     const mode = st.mode & 0o777
-    expect([0o644, 0o666].includes(mode)).toBe(true)
+    // Linux: 0o600 (384) — só o dono lê/escreve, ninguém mais vê o e-mail.
+    // Windows: NTFS não mapeia o bit de grupo/outros; chmod(0o600) num
+    // arquivo gravável vira 0o666 (438). O que garante a privacidade é o
+    // 0o600 em produção (Linux); no Windows o teste só confirma a chamada.
+    expect([0o600, 0o666].includes(mode)).toBe(true)
+    // Em qualquer plataforma, NUNCA pode ser world-readable de propósito
+    // (0o644/0o604) num build Linux. No Windows aceitamos 0o666 (emulação).
+    if (process.platform !== "win32") {
+      expect(mode).toBe(0o600)
+    }
   })
 
   // Cleanup
