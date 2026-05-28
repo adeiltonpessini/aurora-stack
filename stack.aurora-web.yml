@@ -60,13 +60,19 @@ services:
     ## Reduz o blast radius caso a landing seja comprometida. A landing eh
     ## 100% estatica (so serve HTML + setup.sh), nao escreve em disco nem
     ## precisa de privilegio nenhum em runtime.
+    ##
+    ## NOTA SWARM: `docker stack deploy` (Swarm) IGNORA `security_opt`
+    ## (no-new-privileges) — so funciona em `docker run`/compose single-host.
+    ## Por isso foi removido daqui (estava sendo ignorado com warning).
+    ## A protecao equivalente vem de `cap_drop: ALL` (remove CAP_SETUID/
+    ## CAP_SETGID → nao da pra escalar privilegio via binario setuid) +
+    ## user non-root (uid 1001 no Dockerfile). read_only/tmpfs/cap_drop
+    ## SAO suportados no Swarm.
     read_only: true            ## rootfs imutavel — atacante nao persiste
     tmpfs:
       - /tmp                   ## unico path gravavel (Next usa pra cache efemero)
     cap_drop:
-      - ALL                    ## zero capabilities Linux
-    security_opt:
-      - no-new-privileges:true ## nao escala privilegio via setuid
+      - ALL                    ## zero capabilities Linux (cobre o no-new-privileges)
 
     ## ─── Healthcheck ──────────────────────────────────────────────────
     ## Usa `node` (sempre presente na node:20-slim) em vez de curl/wget
