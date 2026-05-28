@@ -29,21 +29,24 @@ services:
 ## ───────────────────────────────────────────────────────────────────────
 
   aurora_web:
-    ## IMAGEM PINADA POR DIGEST (nao :latest). Pinar por sha256 garante
-    ## que o que roda em prod eh EXATAMENTE o que foi auditado — imune a
-    ## tag mutavel sobrescrita (supply-chain). Atualizar deliberadamente:
-    ##   1. GitHub Actions publica nova imagem + imprime o digest no log
-    ##   2. Copie o sha256:... e troque abaixo
-    ##   3. Redeploy no Portainer
-    ## Pra pegar o digest da imagem atual no servidor:
-    ##   docker inspect --format='{{index .RepoDigests 0}}' \
-    ##     ghcr.io/adeiltonpessini/aurora-web:latest
+    ## ── IMAGEM ──────────────────────────────────────────────────────
+    ## ESTADO ATUAL: bootstrap com :latest (1o deploy). Funciona direto,
+    ## sem precisar de digest. A tag :latest segue a branch main.
     ##
-    ## ⚠️ SUBSTITUA o placeholder abaixo pelo digest real ANTES do 1o
-    ## deploy de producao. Ate la, pra bootstrap, pode usar :latest
-    ## TEMPORARIAMENTE (descomente a linha latest e comente a com digest).
-    image: ghcr.io/adeiltonpessini/aurora-web@sha256:REPLACE_WITH_REAL_DIGEST
-    # image: ghcr.io/adeiltonpessini/aurora-web:latest  # bootstrap only
+    ## DEPOIS QUE ESTIVER NO AR: pine por digest (sha256) pra travar a
+    ## versao auditada e ficar imune a sobrescrita de tag (supply-chain).
+    ## Passo-a-passo:
+    ##   1. No servidor (tem Docker + acesso GHCR):
+    ##        docker pull ghcr.io/adeiltonpessini/aurora-web:latest
+    ##        docker inspect --format='{{index .RepoDigests 0}}' \
+    ##          ghcr.io/adeiltonpessini/aurora-web:latest
+    ##      → copia o ghcr.io/...@sha256:abc123...
+    ##   2. Comenta a linha :latest abaixo e descomenta a do digest,
+    ##      colando o sha256 real.
+    ##   3. Redeploy. A partir dai, atualizar = trocar o digest de proposito.
+    ## (Detalhes na secao 7 do DEPLOY-WEB.md.)
+    image: ghcr.io/adeiltonpessini/aurora-web:latest
+    # image: ghcr.io/adeiltonpessini/aurora-web@sha256:COLE_O_DIGEST_REAL_AQUI
 
     networks:
       - AuroraNet ## REDE ISOLADA — nao enxerga Postgres/Evolution/BarberAI
