@@ -119,11 +119,17 @@ services:
         ##   - tls=true (sem certresolver Let's Encrypt)
         ##   - sem router HTTP + redirectscheme
         ##
-        ## ⚠️ A label `traefik.docker.network` abaixo eh OBRIGATORIA quando
-        ## o Traefik esta em MAIS DE UMA rede (BarberaiNet + AuroraNet).
-        ## Sem ela o Traefik pode tentar rotear pela rede errada e dar 502.
+        ## ⚠️ Label de rede OBRIGATORIA quando o Traefik esta em MAIS DE
+        ## UMA rede (BarberaiNet + AuroraNet) — sem ela o Traefik tenta
+        ## rotear pela rede errada e da 502.
+        ##
+        ## ⚠️ NOME DO LABEL: em Traefik v3.2.2+ o `traefik.docker.network`
+        ## foi DEPRECADO em favor de `traefik.swarm.network` (provider
+        ## Swarm). Esta VPS roda Traefik v3.5.3 → tem que ser o `.swarm.`.
+        ## Usar o `.docker.` aqui faz o Traefik IGNORAR e dar 502.
+        ## (doc: traefik migrate/v3 — Swarm Provider Label Updates)
         ## ───────────────────────────────────────────────────────────
-        - traefik.docker.network=AuroraNet
+        - traefik.swarm.network=AuroraNet
 
         ## ── Router: landing (stack.) + setup (setup.) ──────────────
         ## Os dois hostnames apontam pro MESMO container. O Next.js
