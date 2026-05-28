@@ -1,0 +1,78 @@
+name: Release web image
+
+# Publica a imagem da landing (stack.aurora-mcp.com + setup.aurora-mcp.com)
+# no GHCR. Portainer/Swarm puxa a imagem pronta — nao builda no servidor.
+# Dispara no push da main (mudancas em apps/web ou setup/) e em tags.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "setup/setup.sh"
+      - ".github/workflows/release-web.yml"
+    tags: ["web-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: release-web-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/${{ github.repository_owner }}/aurora-web
+
+jobs:
+  build-push:
+    # Self-hosted no mesmo servidor que consome a imagem (mesma infra
+    # do BarberAI). Push pra GHCR via rede interna do datacenter.
+    # Runner registrado no repo aurora-stack via stack.runners.yml
+    # (servico aurora_stack_runner, label aurora-stack).
+    runs-on: [self-hosted, aurora-stack]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+            type=ref,event=tag
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          # Context = raiz do repo (Dockerfile precisa de setup/setup.sh).
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Swarm tem bug conhecido com OCI image index (manifest list).
+          # Desligamos provenance/sbom pra garantir pull confiavel.
+          provenance: false
+          sbom: false
+          # Cache local no disco do runner (instantaneo, sem rate limit).
+          cache-from: type=local,src=/tmp/buildx-cache-aurora-web
+          cache-to: type=local,dest=/tmp/buildx-cache-aurora-web-new,mode=max
+
+      - name: Move cache
+        if: always()
+        run: |
+          rm -rf /tmp/buildx-cache-aurora-web
+          mv /tmp/buildx-cache-aurora-web-new /tmp/buildx-cache-aurora-web 2>/dev/null || true

@@ -1,0 +1,28 @@
+{
+  "name": "@aurorabr/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Landing page e setup.sh endpoint do Aurora Stack (stack.aurora-mcp.com)",
+  "scripts": {
+    "prebuild": "node -e \"require('fs').copyFileSync('../../setup/setup.sh','public/setup.sh')\"",
+    "predev": "node -e \"require('fs').copyFileSync('../../setup/setup.sh','public/setup.sh')\"",
+    "dev": "next dev -p 4000",
+    "build": "next build",
+    "start": "node .next/standalone/server.js",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^15.5.18",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "19.0.0",
+    "@types/react-dom": "19.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.1",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.5.0"
+  }
+}

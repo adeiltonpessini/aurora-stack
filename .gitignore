@@ -6,3 +6,13 @@ coverage
 .DS_Store
 *.log
 .vscode/settings.json
+
+# Next.js (apps/web)
+.next/
+apps/web/public/setup.sh
+apps/web/.next/
+apps/web/out/
+
+# Playwright artefatos temporarios
+.playwright-mcp/
+**/.playwright-mcp/

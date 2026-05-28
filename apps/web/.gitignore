@@ -1,0 +1,30 @@
+# Next.js
+/.next/
+/out/
+/build
+/dist
+
+# Production standalone (gerado por next build)
+node_modules/
+
+# Logs
+*.log
+.pnpm-debug.log*
+
+# Misc
+.DS_Store
+*.pem
+
+# Local env
+.env*.local
+.env
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Auto-copiados do repo (fonte de verdade fica em ../../setup/setup.sh)
+public/setup.sh

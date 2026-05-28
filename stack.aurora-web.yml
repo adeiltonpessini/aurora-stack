@@ -1,0 +1,85 @@
+version: "3.7"
+services:
+
+## --------------------------- AURORA WEB --------------------------- ##
+##
+## App Next.js (standalone) que serve:
+##   • stack.aurora-mcp.com   → landing institucional + catalogo
+##   • setup.aurora-mcp.com   → mesmo container, rota /setup.sh serve
+##                              o bash bootstrap (curl -sSL setup... | bash)
+##
+## Roda na MESMA VPS do BarberAI, reaproveitando a infra existente:
+##   • Rede: BarberaiNet (mesma do BarberAI + Evolution Go + Postgres)
+##   • Traefik: ja instalado, termina HTTPS interno (self-signed) entre
+##     cloudflared↔Traefik. Cert publico (TLS 1.3) eh da Cloudflare no edge.
+##   • Cloudflare Tunnel: 1 CNAME por subdominio → tunnel → Traefik.
+##
+## A imagem eh publicada pelo GitHub Actions em GHCR. Portainer faz pull
+## via Personal Access Token (mesmo PAT do BarberAI).
+
+  aurora_web:
+    ## Tag latest segue a branch main. Pra prod estavel, considere pinar
+    ## numa SHA (ex: :sha-abc1234) e atualizar deliberadamente.
+    image: ghcr.io/adeiltonpessini/aurora-web:latest
+
+    networks:
+      - BarberaiNet ## Mesma rede do BarberAI/Traefik
+
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - HOSTNAME=0.0.0.0
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 3
+      labels:
+        - traefik.enable=true
+
+        ## ───────────────────────────────────────────────────────────
+        ## Cloudflare Tunnel na frente do Traefik (mesmo setup BarberAI).
+        ## Traefik termina HTTPS interno (self-signed). Redirect 80→443
+        ## eh feito pela Cloudflare ("Always Use HTTPS"). Por isso:
+        ##   - tls=true (sem certresolver Let's Encrypt)
+        ##   - sem router HTTP + redirectscheme
+        ## ───────────────────────────────────────────────────────────
+
+        ## ── Router: landing (stack.) + setup (setup.) ──────────────
+        ## Os dois hostnames apontam pro MESMO container. O Next.js
+        ## serve a landing em / e o setup.sh em /setup.sh. Pra que
+        ## `curl -sSL setup.aurora-mcp.com` funcione SEM o path
+        ## /setup.sh, adicionamos um middleware de rewrite que mapeia
+        ## a raiz de setup.aurora-mcp.com → /setup.sh (abaixo).
+        - traefik.http.routers.aurora-web.rule=Host(`stack.aurora-mcp.com`) || Host(`setup.aurora-mcp.com`)
+        - traefik.http.routers.aurora-web.entrypoints=websecure
+        - traefik.http.routers.aurora-web.tls=true
+        - traefik.http.routers.aurora-web.service=aurora-web
+
+        ## ── Router dedicado pro setup.aurora-mcp.com na raiz ────────
+        ## `curl -sSL setup.aurora-mcp.com` bate em GET / do host setup.
+        ## Esse router (mais especifico, prioridade maior) reescreve a
+        ## raiz pra /setup.sh. Assim o one-liner do README funciona sem
+        ## o usuario digitar o path do arquivo.
+        - traefik.http.routers.aurora-setup.rule=Host(`setup.aurora-mcp.com`) && Path(`/`)
+        - traefik.http.routers.aurora-setup.entrypoints=websecure
+        - traefik.http.routers.aurora-setup.tls=true
+        - traefik.http.routers.aurora-setup.service=aurora-web
+        - traefik.http.routers.aurora-setup.priority=100
+        - traefik.http.routers.aurora-setup.middlewares=aurora-setup-rewrite
+        - traefik.http.middlewares.aurora-setup-rewrite.replacepath.path=/setup.sh
+
+        ## ── Service ─────────────────────────────────────────────────
+        - traefik.http.services.aurora-web.loadbalancer.server.port=4000
+        - traefik.http.services.aurora-web.loadbalancer.passHostHeader=true
+
+networks:
+  BarberaiNet:
+    external: true
+    name: BarberaiNet
