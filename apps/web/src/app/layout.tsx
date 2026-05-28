@@ -25,7 +25,15 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        {/* Sem JS, os blocos com .reveal ficariam invisiveis (opacity:0).
+            Este fallback garante que tudo apareca normalmente. CSP permite
+            style inline. */}
+        <noscript>
+          <style>{`.reveal{opacity:1 !important;animation:none !important}`}</style>
+        </noscript>
+        {children}
+      </body>
     </html>
   )
 }

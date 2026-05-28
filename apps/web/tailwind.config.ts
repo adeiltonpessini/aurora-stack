@@ -44,10 +44,41 @@ const config: Config = {
           "0%, 100%": { opacity: "0.55", filter: "blur(40px)" },
           "50%": { opacity: "0.85", filter: "blur(52px)" },
         },
+        // Orbs ambientes do fundo: deriva lenta e organica (parallax fake).
+        "drift-slow": {
+          "0%, 100%": { transform: "translate(0, 0) scale(1)" },
+          "33%": { transform: "translate(30px, -24px) scale(1.06)" },
+          "66%": { transform: "translate(-24px, 18px) scale(0.96)" },
+        },
+        // Gradiente "respirando" — pan horizontal no aurora-flame.
+        "gradient-pan": {
+          "0%, 100%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+        },
+        // Brilho que cruza superficies (botoes/badges/comando) no hover.
+        shimmer: {
+          "0%": { transform: "translateX(-120%)" },
+          "100%": { transform: "translateX(120%)" },
+        },
+        // Reveal padrao usado pelo ScrollReveal (quando JS marca .is-visible).
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(24px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        // Cursor do terminal piscando.
+        blink: {
+          "0%, 49%": { opacity: "1" },
+          "50%, 100%": { opacity: "0" },
+        },
       },
       animation: {
         float: "float 5s ease-in-out infinite",
         "glow-pulse": "glow-pulse 5s ease-in-out infinite",
+        "drift-slow": "drift-slow 18s ease-in-out infinite",
+        "gradient-pan": "gradient-pan 8s ease-in-out infinite",
+        shimmer: "shimmer 1.1s ease-in-out",
+        "fade-in-up": "fade-in-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both",
+        blink: "blink 1.1s step-end infinite",
       },
     },
   },

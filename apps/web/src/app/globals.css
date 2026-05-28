@@ -38,4 +38,83 @@
     @apply font-mono text-sm bg-black/40 border border-aurora-border rounded-xl px-4 py-3
       overflow-x-auto;
   }
+
+  /* Card que reage ao hover: sobe levemente, borda violeta acende e
+     ganha um glow externo. Usado nas features/stacks/diferenciais. */
+  .card-hover {
+    @apply card transition-all duration-300 ease-out will-change-transform
+      hover:-translate-y-1 hover:border-aurora-violet/50
+      hover:shadow-[0_18px_50px_-12px_rgba(129,98,255,0.35)]
+      motion-reduce:transition-none motion-reduce:hover:translate-y-0;
+  }
+
+  /* Botao primario "premium": mantem a base, adiciona leve elevacao
+     e um realce de sombra no hover. */
+  .btn-primary {
+    @apply will-change-transform hover:-translate-y-0.5
+      hover:shadow-aurora-violet/40 active:translate-y-0
+      motion-reduce:hover:translate-y-0;
+  }
+  .btn-secondary {
+    @apply will-change-transform hover:-translate-y-0.5 hover:border-aurora-violet/40
+      active:translate-y-0 motion-reduce:hover:translate-y-0;
+  }
+
+  /* Chip/badge de prova social ou categoria. */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-aurora-border
+      bg-white/[0.03] px-3 py-1 text-xs font-medium text-white/70 transition-colors
+      hover:border-aurora-violet/40 hover:text-white;
+  }
+
+  /* Eyebrow: rotulo pequeno em caixa-alta acima dos titulos de secao. */
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em]
+      text-aurora-lilac/80;
+  }
+}
+
+@layer utilities {
+  /* Texto com gradiente assinatura que "respira" (pan horizontal).
+     Combina com bg-aurora-flame + bg-clip-text text-transparent. */
+  .text-flame-animated {
+    background-size: 220% 220%;
+    @apply animate-gradient-pan motion-reduce:animate-none;
+  }
+
+  /* Malha de pontos sutil pro fundo do hero — puro CSS, sem assets. */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(129, 98, 255, 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(129, 98, 255, 0.06) 1px, transparent 1px);
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+  }
+
+  /* Borda com gradiente (truque do double-background). */
+  .border-gradient {
+    border: 1px solid transparent;
+    background:
+      linear-gradient(#15131f, #15131f) padding-box,
+      linear-gradient(135deg, rgba(90, 200, 255, 0.5), rgba(129, 98, 255, 0.5), rgba(201, 166, 255, 0.5)) border-box;
+  }
+
+  /* Estado inicial do scroll-reveal: invisivel/deslocado.
+     O ScrollReveal (client) adiciona .is-visible quando entra na viewport,
+     disparando a animacao. Sem JS (ou sem suporte), revelamos mesmo assim
+     no fallback do componente. */
+  .reveal {
+    opacity: 0;
+  }
+  .reveal.is-visible {
+    @apply animate-fade-in-up;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal,
+    .reveal.is-visible {
+      opacity: 1;
+      animation: none;
+    }
+  }
 }
