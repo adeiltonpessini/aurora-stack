@@ -23,33 +23,111 @@
 
 set -Eeuo pipefail
 
-yellow="\e[33m"
-green="\e[32m"
-red="\e[91m"
-reset="\e[0m"
+# Caractere ESC real (nao a string "\e"). printf '%s' com a string "\e"
+# imprimiria literal em alguns shells — usamos o byte 0x1b de verdade.
+ESC=$(printf '\033')
 
-ok() { echo -e "${green}[ OK ]${reset} $1"; }
-err() { echo -e "${red}[ ERR ]${reset} $1" >&2; }
-info() { echo -e "${yellow}[ ... ]${reset} $1"; }
+# Cores da marca Aurora (ANSI 256). Fallback gracioso: se o terminal nao
+# suportar cor (sem TTY, TERM=dumb, NO_COLOR setado), tudo vira vazio e a
+# saida sai em texto puro — sem lixo de escapes na tela.
+if [ -t 1 ] && [ "${TERM:-dumb}" != "dumb" ] && [ -z "${NO_COLOR:-}" ]; then
+  violet="${ESC}[38;5;141m"   # roxo Aurora
+  cyan="${ESC}[38;5;51m"      # ciano chama
+  lilac="${ESC}[38;5;183m"    # lilas claro (texto)
+  dim="${ESC}[38;5;240m"      # cinza (secundario)
+  green="${ESC}[38;5;48m"     # verde sucesso
+  red="${ESC}[38;5;203m"      # vermelho erro
+  yellow="${ESC}[38;5;221m"   # amarelo aviso
+  bold="${ESC}[1m"
+  reset="${ESC}[0m"
+  USE_COLOR=1
+else
+  violet=""; cyan=""; lilac=""; dim=""; green=""; red=""; yellow=""; bold=""; reset=""
+  USE_COLOR=0
+fi
 
-# Banner
+ok() { printf '%s  ✓ %s%s\n' "$green" "$reset" "$1"; }
+err() { printf '%s  ✗ %s%s\n' "$red" "$reset" "$1" >&2; }
+info() { printf '%s  • %s%s\n' "$cyan" "$reset" "$1"; }
+
+# ── Spinner por etapa ──────────────────────────────────────────────────
+# Uso:
+#   step "Instalando Docker" comando_longo arg1 arg2
+# Mostra um spinner braille animado (cores da marca) enquanto o comando
+# roda; troca por ✓ (sucesso) ou ✗ + saida do erro (falha). Em terminal
+# sem cor/TTY, cai pra info()+comando direto (sem animacao, log limpo).
+SPINNER_FRAMES='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+step() {
+  local label="$1"; shift
+  if [ "$USE_COLOR" != "1" ]; then
+    info "$label"
+    if "$@" >/tmp/aurora-step.log 2>&1; then ok "$label"; else
+      err "$label — falhou:"; sed 's/^/      /' /tmp/aurora-step.log >&2; return 1
+    fi
+    return 0
+  fi
+  "$@" >/tmp/aurora-step.log 2>&1 &
+  local pid=$! i=0 n=${#SPINNER_FRAMES}
+  # Esconde o cursor durante a animacao.
+  printf '%s' "${ESC}[?25l"
+  while kill -0 "$pid" 2>/dev/null; do
+    local f="${SPINNER_FRAMES:$((i % n)):1}"
+    printf '\r%s  %s %s%s' "$violet" "$f" "$reset" "$label"
+    i=$((i + 1)); sleep 0.08
+  done
+  wait "$pid"; local rc=$?
+  printf '%s' "${ESC}[?25h"   # mostra o cursor de novo
+  printf '\r%s' "${ESC}[K"    # limpa a linha do spinner
+  if [ "$rc" = "0" ]; then ok "$label"; else
+    err "$label — falhou:"; sed 's/^/      /' /tmp/aurora-step.log >&2; return "$rc"
+  fi
+}
+
+# Banner: mascote Aurora (fantasma encapuzado com chama) ao lado do nome.
+# Desenhado pra caber em 80 colunas e renderizar em qualquer terminal UTF-8.
+#
+# IMPLEMENTACAO: as cores entram como ARGUMENTOS (%s) em vez de interpoladas
+# no texto. Isso evita a colisao classica entre a barra invertida do desenho
+# do mascote (\) e a sequencia de escape de cor (\e) na mesma string printf,
+# que faz o \e sair literal na tela. Com %s a cor eh dado, nao codigo.
+aurora_banner() {
+  local L="$lilac" V="$violet" C="$cyan" D="$dim" B="$bold" R="$reset"
+  printf '\n'
+  printf '      %s\\%s %s/%s\n'                       "$C" "$R" "$C" "$R"
+  printf '     %s.-%s^%s-.%s      %s%sA U R O R A%s  %s%sS T A C K%s\n' \
+         "$V" "$C" "$V" "$R" "$B" "$V" "$R" "$B" "$C" "$R"
+  printf '    %s/ %so%s  %so%s \\%s    %s\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80\xe2\x94\x80%s\n' \
+         "$V" "$C" "$V" "$C" "$V" "$R" "$D" "$R"
+  printf '    %s|  %s\xe2\x80\xbf%s  |%s    %sTransforme qualquer Linux em%s\n' \
+         "$V" "$L" "$V" "$R" "$L" "$R"
+  printf '     %s'\''-%s*%s-'\''%s     %sinfraestrutura inteligente%s\n' \
+         "$V" "$C" "$V" "$R" "$L" "$R"
+  printf '      %s\xc2\xb0%s        %sv0.1.0-alpha \xc2\xb7 Elastic License v2%s\n' \
+         "$C" "$R" "$D" "$R"
+  printf '\n'
+}
 clear
-cat <<'EOF'
-========================================================
-   AURORA STACK SETUP
-   Transforme qualquer Linux em infraestrutura inteligente
-========================================================
-EOF
+aurora_banner
 
-# 1. Debian 12 ou 13
+# 1. SO suportado: Debian 12/13 ou Ubuntu 22.04/24.04
+#    (mesma familia apt/systemd; os instaladores de Docker/Node cobrem ambos)
 info "Verificando SO"
 if [ ! -f /etc/os-release ]; then
   err "/etc/os-release não encontrado. Aurora Stack só roda em Linux."
   exit 1
 fi
 . /etc/os-release
-if [ "${ID:-}" != "debian" ] || { [ "${VERSION_ID:-}" != "12" ] && [ "${VERSION_ID:-}" != "13" ]; }; then
-  err "Aurora Stack v0.1 requer Debian 12 (Bookworm) ou 13 (Trixie). Encontrado: ${PRETTY_NAME:-$ID $VERSION_ID}"
+os_ok=0
+case "${ID:-}" in
+  debian)
+    case "${VERSION_ID:-}" in 12|13) os_ok=1 ;; esac
+    ;;
+  ubuntu)
+    case "${VERSION_ID:-}" in 22.04|24.04) os_ok=1 ;; esac
+    ;;
+esac
+if [ "$os_ok" != "1" ]; then
+  err "Aurora Stack v0.1 requer Debian 12/13 ou Ubuntu 22.04/24.04 LTS. Encontrado: ${PRETTY_NAME:-$ID $VERSION_ID}"
   exit 1
 fi
 ok "${PRETTY_NAME} detectado"
@@ -62,16 +140,12 @@ fi
 ok "Root validado"
 
 # 3. apt update + upgrade
-info "Atualizando pacotes (pode levar 1-2 min)"
-apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -qq
-ok "Pacotes atualizados"
+_apt_update() { apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -qq; }
+step "Atualizando pacotes (pode levar 1-2 min)" _apt_update
 
 # 4. Deps básicas
-info "Instalando dependências básicas"
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-  curl ca-certificates gnupg dialog jq apt-utils
-ok "Dependências básicas instaladas"
+_apt_deps() { DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl ca-certificates gnupg dialog jq apt-utils; }
+step "Instalando dependências básicas" _apt_deps
 
 # Nota de seguranca sobre os dois `curl ... | sh/bash` abaixo:
 #   Sao os instaladores OFICIAIS do NodeSource e do Docker, baixados via
@@ -83,24 +157,22 @@ ok "Dependências básicas instaladas"
 #   Docker via apt/keyring ANTES e o setup detecta (command -v) e pula.
 
 # 5. Node.js 20
+_install_node() { curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nodejs; }
 if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -c2- | cut -d. -f1)" -lt 20 ]; then
-  info "Instalando Node.js 20 via NodeSource (instalador oficial, HTTPS)"
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nodejs
+  step "Instalando Node.js 20 (NodeSource oficial, HTTPS)" _install_node
 fi
 ok "Node.js $(node -v) instalado"
 
 # 6. Docker
+_install_docker() { curl -fsSL https://get.docker.com | sh; }
 if ! command -v docker >/dev/null 2>&1; then
-  info "Instalando Docker Engine (instalador oficial get.docker.com, HTTPS)"
-  curl -fsSL https://get.docker.com | sh
+  step "Instalando Docker Engine (get.docker.com oficial, HTTPS)" _install_docker
 fi
 ok "Docker $(docker --version | awk '{print $3}' | tr -d ',') instalado"
 
 # 7. Swarm
 if ! docker info 2>/dev/null | grep -q "Swarm: active"; then
-  info "Iniciando Docker Swarm"
-  docker swarm init >/dev/null 2>&1 || {
+  step "Iniciando Docker Swarm" docker swarm init || {
     err "Falha ao iniciar Swarm. Veja: docker info"
     exit 1
   }
@@ -109,16 +181,14 @@ ok "Docker Swarm ativo"
 
 # 8. aurora-net
 if ! docker network ls --format '{{.Name}}' | grep -q '^aurora-net$'; then
-  info "Criando overlay network aurora-net"
-  docker network create -d overlay --attachable aurora-net >/dev/null
+  step "Criando overlay network aurora-net" \
+    docker network create -d overlay --attachable aurora-net
 fi
 ok "Network aurora-net pronta"
 
 # 9. Estrutura
-info "Criando estrutura /opt/aurora"
-mkdir -p /opt/aurora/{apps,stacks,volumes,backups,configs,logs}
-mkdir -p /etc/aurora
-ok "Estrutura criada"
+_mk_struct() { mkdir -p /opt/aurora/{apps,stacks,volumes,backups,configs,logs} && mkdir -p /etc/aurora; }
+step "Criando estrutura /opt/aurora" _mk_struct
 
 # 9b. Hardening de SO (firewall + auto-updates + fail2ban + SSH)
 #
