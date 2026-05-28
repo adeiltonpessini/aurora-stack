@@ -4,8 +4,9 @@
   "private": true,
   "description": "Landing page e setup.sh endpoint do Aurora Stack (stack.aurora-mcp.com)",
   "scripts": {
-    "prebuild": "node -e \"require('fs').copyFileSync('../../setup/setup.sh','public/setup.sh')\"",
-    "predev": "node -e \"require('fs').copyFileSync('../../setup/setup.sh','public/setup.sh')\"",
+    "copy:setup": "node -e \"const fs=require('fs');const s='../../setup/setup.sh';if(fs.existsSync(s)){fs.mkdirSync('public',{recursive:true});fs.copyFileSync(s,'public/setup.sh');console.log('setup.sh copiado pra public/')}else{console.log('setup.sh source nao encontrado ('+s+') — pulando (Dockerfile copia via COPY)')}\"",
+    "prebuild": "npm run copy:setup",
+    "predev": "npm run copy:setup",
     "dev": "next dev -p 4000",
     "build": "next build",
     "start": "node .next/standalone/server.js",
